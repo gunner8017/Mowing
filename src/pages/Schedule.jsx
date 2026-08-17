@@ -8,6 +8,7 @@ function Schedule() {
   const [customers, setCustomers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ customer_name: '', service: '', price: '', date: '', time: '', status: 'Scheduled' });
+  const [repeatMode, setRepeatMode] = useState('once');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,9 +30,48 @@ function Schedule() {
 
   const handleSave = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.from('jobs').insert([formData]);
+    
+    // Split date to avoid timezone shift issues
+    const [year, month, day] = formData.date.split('-').map(Number);
+    const baseDate = new Date(year, month - 1, day);
+    
+    let repeatCount = 1;
+    let dayInterval = 7;
+    
+    if (repeatMode === 'weekly') {
+      repeatCount = 4; // Add next 4 weeks
+      dayInterval = 7;
+    } else if (repeatMode === 'biweekly') {
+      repeatCount = 4; // Add next 4 bi-weekly cuts (8 weeks total)
+      dayInterval = 14;
+    }
+
+    const jobsToInsert = [];
+    for (let i = 0; i < repeatCount; i++) {
+      const nextDate = new Date(baseDate);
+      nextDate.setDate(baseDate.getDate() + (i * dayInterval));
+      
+      // Format back to YYYY-MM-DD
+      const yyyy = nextDate.getFullYear();
+      const mm = String(nextDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(nextDate.getDate()).padStart(2, '0');
+      const dateString = `${yyyy}-${mm}-${dd}`;
+
+      jobsToInsert.push({
+        customer_name: formData.customer_name,
+        service: formData.service,
+        price: formData.price,
+        date: dateString,
+        time: formData.time,
+        status: 'Scheduled'
+      });
+    }
+
+    const { error } = await supabase.from('jobs').insert(jobsToInsert);
     if (!error) fetchJobs();
+    
     setIsModalOpen(false);
+    setRepeatMode('once');
     setFormData({ customer_name: '', service: '', price: '', date: '', time: '', status: 'Scheduled' });
   };
 
@@ -58,7 +98,7 @@ function Schedule() {
       <div style={{
         background: 'rgba(30, 41, 59, 0.98)', border: '1px solid rgba(255,255,255,0.1)',
         borderRadius: '12px', padding: '28px', width: '100%', maxWidth: '480px',
-        boxShadow: '0 25px 50px rgba(0,0,0,0.6)'
+        boxShadow: '0 25px 50px rgba(0,0,0,0.6)', maxHeight: '90vh', overflowY: 'auto'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <h2 style={{ fontSize: '20px', color: '#f8fafc' }}>Schedule Job</h2>
@@ -89,7 +129,7 @@ function Schedule() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="input-group">
-              <label className="input-label">Date</label>
+              <label className="input-label">Start Date</label>
               <input required type="date" className="input-field" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
             </div>
             <div className="input-group">
@@ -97,6 +137,16 @@ function Schedule() {
               <input required type="time" className="input-field" value={formData.time} onChange={e => setFormData({...formData, time: e.target.value})} />
             </div>
           </div>
+          
+          <div className="input-group" style={{ marginTop: '8px' }}>
+            <label className="input-label">Repeat Job Settings</label>
+            <select className="input-field" value={repeatMode} onChange={e => setRepeatMode(e.target.value)}>
+              <option value="once">One-time job</option>
+              <option value="weekly">Repeat Weekly (generates next 4 cuts)</option>
+              <option value="biweekly">Repeat Bi-weekly (generates next 4 cuts over 8 weeks)</option>
+            </select>
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
             <button type="button" className="btn btn-outline" onClick={() => setIsModalOpen(false)}>Cancel</button>
             <button type="submit" className="btn btn-primary">Save Job</button>
