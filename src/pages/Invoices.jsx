@@ -5,11 +5,15 @@ import { supabase } from '../supabaseClient';
 
 function Invoices() {
   const [invoices, setInvoices] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ invoice_id: '', customer_name: '', amount: '', date_issued: '', status: 'Pending' });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchInvoices(); }, []);
+  useEffect(() => {
+    fetchInvoices();
+    fetchCustomers();
+  }, []);
 
   async function fetchInvoices() {
     setLoading(true);
@@ -18,12 +22,23 @@ function Invoices() {
     setLoading(false);
   }
 
+  async function fetchCustomers() {
+    const { data } = await supabase.from('customers').select('id, name').order('name');
+    if (data) setCustomers(data);
+  }
+
+  // Auto-generate invoice ID
+  const openModal = () => {
+    const newId = `INV-${String(invoices.length + 1).padStart(3, '0')}`;
+    setFormData({ invoice_id: newId, customer_name: '', amount: '', date_issued: new Date().toISOString().split('T')[0], status: 'Pending' });
+    setIsModalOpen(true);
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     const { error } = await supabase.from('invoices').insert([formData]);
     if (!error) fetchInvoices();
     setIsModalOpen(false);
-    setFormData({ invoice_id: '', customer_name: '', amount: '', date_issued: '', status: 'Pending' });
   };
 
   const handleDelete = async (id) => {
@@ -59,7 +74,7 @@ function Invoices() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="input-group">
               <label className="input-label">Invoice ID</label>
-              <input required type="text" className="input-field" value={formData.invoice_id} onChange={e => setFormData({...formData, invoice_id: e.target.value})} placeholder="e.g. INV-001" />
+              <input required type="text" className="input-field" value={formData.invoice_id} onChange={e => setFormData({...formData, invoice_id: e.target.value})} />
             </div>
             <div className="input-group">
               <label className="input-label">Date Issued</label>
@@ -67,12 +82,15 @@ function Invoices() {
             </div>
           </div>
           <div className="input-group">
-            <label className="input-label">Customer Name</label>
-            <input required type="text" className="input-field" value={formData.customer_name} onChange={e => setFormData({...formData, customer_name: e.target.value})} />
+            <label className="input-label">Customer</label>
+            <select required className="input-field" value={formData.customer_name} onChange={e => setFormData({...formData, customer_name: e.target.value})}>
+              <option value="">-- Select a Customer --</option>
+              {customers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
           </div>
           <div className="input-group">
             <label className="input-label">Amount</label>
-            <input required type="text" className="input-field" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} placeholder="e.g. $40.00" />
+            <input required type="text" className="input-field" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} placeholder="e.g. $30.00" />
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
             <button type="button" className="btn btn-outline" onClick={() => setIsModalOpen(false)}>Cancel</button>
@@ -88,7 +106,7 @@ function Invoices() {
     <div>
       <div className="flex justify-between items-center" style={{ marginBottom: '16px' }}>
         <h1 style={{ fontSize: '28px' }}>Invoices</h1>
-        <button className="btn btn-primary" onClick={() => setIsModalOpen(true)}><Plus size={16} style={{ marginRight: '8px' }} /> Create Invoice</button>
+        <button className="btn btn-primary" onClick={openModal}><Plus size={16} style={{ marginRight: '8px' }} /> Create Invoice</button>
       </div>
 
       <div className="card" style={{ padding: '16px' }}>
@@ -98,7 +116,7 @@ function Invoices() {
               <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                 <th style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontWeight: '500' }}>Invoice ID</th>
                 <th style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontWeight: '500' }}>Customer</th>
-                <th style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontWeight: '500' }}>Date Issued</th>
+                <th style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontWeight: '500' }}>Date</th>
                 <th style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontWeight: '500' }}>Amount</th>
                 <th style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontWeight: '500' }}>Status</th>
                 <th style={{ padding: '12px 16px', color: 'var(--text-secondary)', fontWeight: '500', textAlign: 'right' }}>Actions</th>

@@ -5,17 +5,26 @@ import { supabase } from '../supabaseClient';
 
 function Schedule() {
   const [jobs, setJobs] = useState([]);
+  const [customers, setCustomers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ customer_name: '', service: '', price: '', date: '', time: '', status: 'Scheduled' });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { fetchJobs(); }, []);
+  useEffect(() => {
+    fetchJobs();
+    fetchCustomers();
+  }, []);
 
   async function fetchJobs() {
     setLoading(true);
     const { data, error } = await supabase.from('jobs').select('*').order('date', { ascending: true });
     if (!error && data) setJobs(data);
     setLoading(false);
+  }
+
+  async function fetchCustomers() {
+    const { data } = await supabase.from('customers').select('id, name').order('name');
+    if (data) setCustomers(data);
   }
 
   const handleSave = async (e) => {
@@ -57,12 +66,22 @@ function Schedule() {
         </div>
         <form onSubmit={handleSave}>
           <div className="input-group">
-            <label className="input-label">Customer Name</label>
-            <input required type="text" className="input-field" value={formData.customer_name} onChange={e => setFormData({...formData, customer_name: e.target.value})} />
+            <label className="input-label">Customer</label>
+            <select required className="input-field" value={formData.customer_name} onChange={e => setFormData({...formData, customer_name: e.target.value})}>
+              <option value="">-- Select a Customer --</option>
+              {customers.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+            </select>
           </div>
           <div className="input-group">
-            <label className="input-label">Service Description</label>
-            <input required type="text" className="input-field" value={formData.service} onChange={e => setFormData({...formData, service: e.target.value})} placeholder="e.g. Front & Back" />
+            <label className="input-label">Service</label>
+            <select required className="input-field" value={formData.service} onChange={e => setFormData({...formData, service: e.target.value, price: e.target.value === 'Front & Back' ? '$30' : e.target.value === 'Front Only' || e.target.value === 'Back Only' ? '$20' : formData.price})}>
+              <option value="">-- Select a Service --</option>
+              <option value="Front & Back">Front & Back — $30</option>
+              <option value="Front Only">Front Only — $20</option>
+              <option value="Back Only">Back Only — $20</option>
+              <option value="Weed Killer">Weed Killer Spray</option>
+              <option value="Fertilizing">Fertilizing</option>
+            </select>
           </div>
           <div className="input-group">
             <label className="input-label">Price</label>
@@ -104,20 +123,20 @@ function Schedule() {
             <div key={job.id} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               padding: '12px 16px', background: 'rgba(15,23,42,0.4)',
-              borderRadius: '12px', border: '1px solid var(--border-color)'
+              borderRadius: '12px', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '12px'
             }}>
-              <div style={{ display: 'flex', gap: '24px', alignItems: 'center' }}>
-                <div style={{ textAlign: 'center', minWidth: '100px', borderRight: '1px solid var(--border-color)', paddingRight: '24px' }}>
+              <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                <div style={{ textAlign: 'center', minWidth: '80px', borderRight: '1px solid var(--border-color)', paddingRight: '16px' }}>
                   <p className="text-secondary" style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px' }}>{job.date}</p>
                 </div>
                 <div>
-                  <h3 style={{ fontSize: '18px', marginBottom: '4px' }}>{job.customer_name}</h3>
+                  <h3 style={{ fontSize: '16px', marginBottom: '4px' }}>{job.customer_name}</h3>
                   <p className="text-secondary" style={{ fontSize: '14px' }}>{job.service} • {job.time}</p>
                 </div>
               </div>
-              <div style={{ textAlign: 'right', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div>
-                  <p style={{ fontWeight: '600', fontSize: '18px', marginBottom: '8px', color: 'var(--primary-green)' }}>{job.price}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ textAlign: 'right' }}>
+                  <p style={{ fontWeight: '600', fontSize: '18px', marginBottom: '6px', color: 'var(--primary-green)' }}>{job.price}</p>
                   <button onClick={() => toggleStatus(job)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}
                     className={`badge ${job.status === 'Completed' ? 'badge-green' : 'badge-yellow'}`}>
                     {job.status}
