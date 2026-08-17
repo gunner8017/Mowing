@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Navigation, MapPin } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Navigation, MapPin, CloudRain, X, MessageSquare } from 'lucide-react';
 import banner from '../assets/image1.png';
 import { supabase } from '../supabaseClient';
 
@@ -11,15 +12,18 @@ function Dashboard() {
     pendingInvoices: 0
   });
   const [todayJobs, setTodayJobs] = useState([]);
-  const [loadingRoute, setLoadingRoute] = useState(false);
+  const [isRainModalOpen, setIsRainModalOpen] = useState(false);
+  const [rainMessageTemplate, setRainMessageTemplate] = useState(
+    "Hi [Name], this is KG Lawn Services. Due to the weather today, we will have to push your lawn care service to tomorrow. Let us know if you have any questions!"
+  );
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
   async function fetchDashboardData() {
-    // Fetch Customers (need count and address mapping)
-    const { data: customerList } = await supabase.from('customers').select('name, address');
+    // Fetch Customers (need count, address, and phone mapping)
+    const { data: customerList } = await supabase.from('customers').select('name, address, phone');
     const customersCount = customerList ? customerList.length : 0;
     
     // Fetch Pending Invoices count
@@ -47,12 +51,13 @@ function Dashboard() {
     });
 
     if (jobs && customerList) {
-      // Map addresses to today's jobs
+      // Map addresses and phones to today's jobs
       const mappedJobs = jobs.map(job => {
         const match = customerList.find(c => c.name === job.customer_name);
         return {
           ...job,
-          address: match ? match.address : 'No address saved'
+          address: match ? match.address : 'No address saved',
+          phone: match ? match.phone : ''
         };
       });
       setTodayJobs(mappedJobs);
@@ -71,14 +76,90 @@ function Dashboard() {
       .filter(addr => addr && addr !== 'No address saved' && addr.trim() !== '');
 
     if (validAddresses.length === 0) {
-      alert("No valid addresses found for today's jobs. Make sure customers have addresses saved!");
+      alert("No valid addresses found for today's jobs.");
       return;
     }
 
-    // Opens Google Maps routing from Current Location through all waypoints
     const mapsUrl = `https://www.google.com/maps/dir/Current+Location/${validAddresses.map(addr => encodeURIComponent(addr)).join('/')}`;
     window.open(mapsUrl, '_blank');
   };
+
+  const sendRainDelayText = (job) => {
+    if (!job.phone) {
+      alert(`No phone number found for ${job.customer_name}.`);
+      return;
+    }
+    const cleanPhone = job.phone.replace(/\D/g, '');
+    const personalizedMessage = rainMessageTemplate.replace('[Name]', job.customer_name);
+    window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(personalizedMessage)}`;
+  };
+
+  const rainModal = isRainModalOpen ? createPortal(
+    <div style={{
+      position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+      background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      zIndex: 99999, padding: '20px', boxSizing: 'border-box'
+    }}>
+      <div style={{
+        background: 'rgba(30, 41, 59, 0.98)', border: '1px solid rgba(255,255,255,0.1)',
+        borderRadius: '12px', padding: '28px', width: '100%', maxWidth: '480px',
+        boxShadow: '0 25px 50px rgba(0,0,0,0.6)', maxHeight: '80vh', display: 'flex', flexDirection: 'column'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexShrink: 0 }}>
+          <h2 style={{ fontSize: '20px', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CloudRain size={20} style={{ color: '#60a5fa' }} /> Rain Delay Broadcast
+          </h2>
+          <button type="button" onClick={() => setIsRainModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer' }}><X size={20} /></button>
+        </div>
+        
+        <div style={{ overflowY: 'auto', flex: 1, paddingRight: '8px' }}>
+          <div className="input-group">
+            <label className="input-label">Message Template (use [Name] for client name)</label>
+            <textarea 
+              className="input-field" 
+              rows="4" 
+              value={rainMessageTemplate} 
+              onChange={e => setRainMessageTemplate(e.target.value)}
+              style={{ width: '100%', fontFamily: 'inherit', resize: 'vertical' }}
+            />
+          </div>
+
+          <h3 style={{ fontSize: '15px', color: '#94a3b8', marginBottom: '12px', marginTop: '16px' }}>Today's Scheduled Clients:</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {todayJobs.map(job => (
+              <div key={job.id} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '10px 14px', background: 'rgba(15,23,42,0.3)',
+                borderRadius: '8px', border: '1px solid var(--border-color)'
+              }}>
+                <div>
+                  <p style={{ fontWeight: '500', fontSize: '14px' }}>{job.customer_name}</p>
+                  <p className="text-secondary" style={{ fontSize: '12px' }}>{job.phone || 'No phone saved'}</p>
+                </div>
+                <button 
+                  onClick={() => sendRainDelayText(job)}
+                  style={{
+                    background: 'rgba(96, 165, 250, 0.1)', border: '1px solid rgba(96, 165, 250, 0.3)',
+                    color: '#60a5fa', padding: '8px', borderRadius: '6px', cursor: 'pointer'
+                  }}
+                  title="Send rain delay text"
+                  disabled={!job.phone}
+                >
+                  <MessageSquare size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px', flexShrink: 0 }}>
+          <button type="button" className="btn btn-outline" onClick={() => setIsRainModalOpen(false)}>Done</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
 
   return (
     <div>
@@ -111,11 +192,18 @@ function Dashboard() {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '28px', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <h2 style={{ fontSize: '20px' }}>Today's Schedule</h2>
-        {todayJobs.length > 0 && (
-          <button onClick={handleMapRoute} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '13px' }}>
-            <Navigation size={15} style={{ marginRight: '6px' }} /> Map Today's Route
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '8px' }}>
+          {todayJobs.length > 0 && (
+            <>
+              <button onClick={() => setIsRainModalOpen(true)} className="btn btn-outline" style={{ padding: '8px 16px', fontSize: '13px', borderColor: '#60a5fa', color: '#60a5fa' }}>
+                <CloudRain size={15} style={{ marginRight: '6px' }} /> Broadcast Rain Delay
+              </button>
+              <button onClick={handleMapRoute} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '13px' }}>
+                <Navigation size={15} style={{ marginRight: '6px' }} /> Map Today's Route
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="card" style={{ padding: '0' }}>
@@ -152,6 +240,8 @@ function Dashboard() {
           ))}
         </ul>
       </div>
+
+      {rainModal}
     </div>
   );
 }
