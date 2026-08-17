@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Navigation, MapPin, CloudRain, X, MessageSquare } from 'lucide-react';
+import { Navigation, MapPin, CloudRain, X, MessageSquare, Sun, Cloud, CloudFog, CloudDrizzle, CloudSnow, CloudLightning } from 'lucide-react';
 import banner from '../assets/image1.png';
 import { supabase } from '../supabaseClient';
 
@@ -16,25 +16,23 @@ function Dashboard() {
   const [rainMessageTemplate, setRainMessageTemplate] = useState(
     "Hi [Name], this is KG Lawn Services. Due to the weather today, we will have to push your lawn care service to tomorrow. Let us know if you have any questions!"
   );
+  
+  // Weather states
+  const [weather, setWeather] = useState(null);
 
   useEffect(() => {
     fetchDashboardData();
+    initWeather();
   }, []);
 
   async function fetchDashboardData() {
-    // Fetch Customers (need count, address, phone, and notes mapping)
     const { data: customerList } = await supabase.from('customers').select('name, address, phone, notes');
     const customersCount = customerList ? customerList.length : 0;
-    
-    // Fetch Pending Invoices count
     const { count: pendingCount } = await supabase.from('invoices').select('*', { count: 'exact', head: true }).eq('status', 'Pending');
-
-    // Fetch Jobs for today
     const today = new Date().toISOString().split('T')[0];
     const { data: jobs } = await supabase.from('jobs').select('*').eq('date', today);
-    
-    // Fetch all paid invoices for revenue calculation
     const { data: paidInvoices } = await supabase.from('invoices').select('amount').eq('status', 'Paid');
+    
     let revenue = 0;
     if (paidInvoices) {
       revenue = paidInvoices.reduce((acc, inv) => {
@@ -51,7 +49,6 @@ function Dashboard() {
     });
 
     if (jobs && customerList) {
-      // Map addresses, phones, and notes to today's jobs
       const mappedJobs = jobs.map(job => {
         const match = customerList.find(c => c.name === job.customer_name);
         return {
@@ -65,10 +62,55 @@ function Dashboard() {
     }
   }
 
-  const toggleJobStatus = async (job) => {
-    const newStatus = job.status === 'Scheduled' ? 'Completed' : 'Scheduled';
-    await supabase.from('jobs').update({ status: newStatus }).eq('id', job.id);
-    fetchDashboardData();
+  // Geolocation and Open-Meteo Weather API setup
+  const initWeather = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          fetchWeather(position.coords.latitude, position.coords.longitude);
+        },
+        () => {
+          fetchWeather(43.6532, -79.3832); // Fallback to Toronto
+        }
+      );
+    } else {
+      fetchWeather(43.6532, -79.3832);
+    }
+  };
+
+  async function fetchWeather(lat, lon) {
+    try {
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&timezone=auto`);
+      const data = await res.json();
+      
+      let cityName = 'Local Area';
+      try {
+        const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+        const geoData = await geoRes.json();
+        cityName = geoData.address.city || geoData.address.town || geoData.address.village || 'Local Area';
+      } catch (e) {
+        console.log("Geocoding failed");
+      }
+
+      setWeather({
+        temp: data.current.temperature_2m,
+        code: data.current.weather_code,
+        city: cityName
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  const getWeatherInfo = (code) => {
+    if (code === 0) return { label: 'Sunny', icon: <Sun size={22} style={{ color: '#fbbf24' }} /> };
+    if ([1, 2, 3].includes(code)) return { label: 'Partly Cloudy', icon: <Cloud size={22} style={{ color: '#94a3b8' }} /> };
+    if ([45, 48].includes(code)) return { label: 'Foggy', icon: <CloudFog size={22} style={{ color: '#64748b' }} /> };
+    if ([51, 53, 55, 56, 57].includes(code)) return { label: 'Drizzle', icon: <CloudDrizzle size={22} style={{ color: '#60a5fa' }} /> };
+    if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return { label: 'Rainy', icon: <CloudRain size={22} style={{ color: '#3b82f6' }} /> };
+    if ([71, 73, 75, 77, 85, 86].includes(code)) return { label: 'Snowy', icon: <CloudSnow size={22} style={{ color: '#93c5fd' }} /> };
+    if ([95, 96, 99].includes(code)) return { label: 'Thunderstorm', icon: <CloudLightning size={22} style={{ color: '#a78bfa' }} /> };
+    return { label: 'Clear', icon: <Sun size={22} style={{ color: '#fbbf24' }} /> };
   };
 
   const handleMapRoute = () => {
@@ -168,8 +210,17 @@ function Dashboard() {
         <img src={banner} alt="KG LS Banner" style={{ width: '100%', height: 'auto', display: 'block', maxHeight: '200px', objectFit: 'cover', objectPosition: 'center' }} />
       </div>
 
-      <div className="flex justify-between items-center" style={{ marginBottom: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <h1 style={{ fontSize: '28px' }}>Dashboard</h1>
+        {weather && (
+          <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 16px', margin: 0, borderRadius: '8px' }}>
+            {getWeatherInfo(weather.code).icon}
+            <div>
+              <p style={{ fontWeight: '600', fontSize: '14px', margin: 0 }}>{weather.temp}°C - {getWeatherInfo(weather.code).label}</p>
+              <p className="text-secondary" style={{ fontSize: '11px', margin: 0 }}>{weather.city}</p>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid md:grid-cols-2 md:grid-cols-4" style={{ gap: '12px', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
