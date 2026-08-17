@@ -11,6 +11,7 @@ function Earnings() {
   const [pendingInvoices, setPendingInvoices] = useState([]);
   const [topCustomers, setTopCustomers] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,6 +26,10 @@ function Earnings() {
     // Fetch customers for phone numbers (for nagging texts)
     const { data: customerData } = await supabase.from('customers').select('name, phone');
     if (customerData) setCustomers(customerData);
+
+    // Fetch settings
+    const { data: settingsData } = await supabase.from('settings').select('*').limit(1);
+    if (settingsData && settingsData.length > 0) setSettings(settingsData[0]);
 
     if (!error && invoices) {
       let paidSum = 0;
@@ -70,7 +75,12 @@ function Earnings() {
       return;
     }
     const cleanPhone = customer.phone.replace(/\D/g, '');
-    const message = `Friendly reminder from KG Lawn Services: Invoice ${inv.invoice_id} for ${inv.amount} is currently pending. Please send payment when you get a chance. Thank you!`;
+    const bizName = settings?.business_name || 'KG Lawn Services';
+    const eTransferInfo = settings?.etransfer_email 
+      ? ` Please send Interac e-Transfer to: ${settings.etransfer_email}.` 
+      : '';
+      
+    const message = `Friendly reminder from ${bizName}: Invoice ${inv.invoice_id} for ${inv.amount} is currently pending.${eTransferInfo} Please send payment when you get a chance. Thank you!`;
     window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(message)}`;
   };
 

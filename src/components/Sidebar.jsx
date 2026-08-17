@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, CalendarDays, FileText, DollarSign } from 'lucide-react';
+import { LayoutDashboard, Users, CalendarDays, FileText, DollarSign, Settings } from 'lucide-react';
 import logo from '../assets/image2.png';
 
 const navItems = [
@@ -7,6 +7,7 @@ const navItems = [
   { id: 'schedule', label: 'Schedule', icon: <CalendarDays size={22} /> },
   { id: 'invoices', label: 'Invoices', icon: <FileText size={22} /> },
   { id: 'earnings', label: 'Earnings', icon: <DollarSign size={22} /> },
+  { id: 'settings', label: 'Settings', icon: <Settings size={22} /> },
 ];
 
 function Sidebar({ activeTab, setActiveTab }) {

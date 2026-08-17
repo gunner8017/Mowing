@@ -6,6 +6,7 @@ import Customers from './pages/Customers';
 import Schedule from './pages/Schedule';
 import Invoices from './pages/Invoices';
 import Earnings from './pages/Earnings';
+import Settings from './pages/Settings';
 import Login from './pages/Login';
 import { supabase } from './supabaseClient';
 
@@ -40,6 +41,7 @@ function App() {
       case 'schedule': return <Schedule />;
       case 'invoices': return <Invoices />;
       case 'earnings': return <Earnings />;
+      case 'settings': return <Settings />;
       default: return <Dashboard />;
     }
   };

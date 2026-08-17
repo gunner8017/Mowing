@@ -6,6 +6,7 @@ import { supabase } from '../supabaseClient';
 function Invoices() {
   const [invoices, setInvoices] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [settings, setSettings] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ invoice_id: '', customer_name: '', amount: '', date_issued: '', status: 'Pending' });
   const [loading, setLoading] = useState(true);
@@ -13,6 +14,7 @@ function Invoices() {
   useEffect(() => {
     fetchInvoices();
     fetchCustomers();
+    fetchSettings();
   }, []);
 
   async function fetchInvoices() {
@@ -25,6 +27,11 @@ function Invoices() {
   async function fetchCustomers() {
     const { data } = await supabase.from('customers').select('id, name, phone').order('name');
     if (data) setCustomers(data);
+  }
+
+  async function fetchSettings() {
+    const { data } = await supabase.from('settings').select('*').limit(1);
+    if (data && data.length > 0) setSettings(data[0]);
   }
 
   // Auto-generate invoice ID
@@ -62,7 +69,12 @@ function Invoices() {
     }
     
     const cleanPhone = customer.phone.replace(/\D/g, ''); // strip formatting
-    const message = `Hi ${inv.customer_name}, this is KG Lawn Services. Just sending over invoice ${inv.invoice_id} for ${inv.amount} for our recent lawn care service. Thank you!`;
+    const bizName = settings?.business_name || 'KG Lawn Services';
+    const eTransferInfo = settings?.etransfer_email 
+      ? ` Please send Interac e-Transfer to: ${settings.etransfer_email}.` 
+      : '';
+      
+    const message = `Hi ${inv.customer_name}, this is ${bizName}. Just sending over invoice ${inv.invoice_id} for ${inv.amount} for our recent lawn care service.${eTransferInfo} Thank you!`;
     
     // Trigger native SMS client
     window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(message)}`;
