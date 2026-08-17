@@ -22,8 +22,8 @@ function Dashboard() {
   }, []);
 
   async function fetchDashboardData() {
-    // Fetch Customers (need count, address, and phone mapping)
-    const { data: customerList } = await supabase.from('customers').select('name, address, phone');
+    // Fetch Customers (need count, address, phone, and notes mapping)
+    const { data: customerList } = await supabase.from('customers').select('name, address, phone, notes');
     const customersCount = customerList ? customerList.length : 0;
     
     // Fetch Pending Invoices count
@@ -51,13 +51,14 @@ function Dashboard() {
     });
 
     if (jobs && customerList) {
-      // Map addresses and phones to today's jobs
+      // Map addresses, phones, and notes to today's jobs
       const mappedJobs = jobs.map(job => {
         const match = customerList.find(c => c.name === job.customer_name);
         return {
           ...job,
           address: match ? match.address : 'No address saved',
-          phone: match ? match.phone : ''
+          phone: match ? match.phone : '',
+          notes: match ? match.notes : ''
         };
       });
       setTodayJobs(mappedJobs);
@@ -225,7 +226,12 @@ function Dashboard() {
                 <p className="text-secondary" style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
                   <MapPin size={13} /> {job.address}
                 </p>
-                <p className="text-secondary" style={{ fontSize: '13px' }}>{job.service} • {job.time}</p>
+                {job.notes && (
+                  <p style={{ fontSize: '12px', color: '#fbbf24', marginBottom: '4px', background: 'rgba(245,158,11,0.1)', padding: '2px 8px', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '4px', border: '1px solid rgba(245,158,11,0.2)' }}>
+                    ⚠️ Note: {job.notes}
+                  </p>
+                )}
+                <p className="text-secondary" style={{ fontSize: '13px', marginTop: job.notes ? '4px' : '0' }}>{job.service} • {job.time}</p>
               </div>
               <div>
                 <button 

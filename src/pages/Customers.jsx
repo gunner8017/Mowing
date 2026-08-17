@@ -7,7 +7,7 @@ function Customers() {
   const [customers, setCustomers] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [formData, setFormData] = useState({ name: '', address: '', phone: '', schedule: '' });
+  const [formData, setFormData] = useState({ name: '', address: '', phone: '', schedule: '', notes: '' });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { fetchCustomers(); }, []);
@@ -22,10 +22,16 @@ function Customers() {
   const handleOpenModal = (customer = null) => {
     if (customer) {
       setEditingId(customer.id);
-      setFormData({ name: customer.name, address: customer.address, phone: customer.phone, schedule: customer.schedule });
+      setFormData({ 
+        name: customer.name, 
+        address: customer.address, 
+        phone: customer.phone, 
+        schedule: customer.schedule,
+        notes: customer.notes || ''
+      });
     } else {
       setEditingId(null);
-      setFormData({ name: '', address: '', phone: '', schedule: '' });
+      setFormData({ name: '', address: '', phone: '', schedule: '', notes: '' });
     }
     setIsModalOpen(true);
   };
@@ -84,6 +90,17 @@ function Customers() {
             <label className="input-label">Schedule</label>
             <input required type="text" className="input-field" value={formData.schedule} onChange={e => setFormData({...formData, schedule: e.target.value})} placeholder="e.g. Weekly (Friday)" />
           </div>
+          <div className="input-group">
+            <label className="input-label">Notes (Gate codes, dogs, etc.)</label>
+            <textarea 
+              className="input-field" 
+              value={formData.notes} 
+              onChange={e => setFormData({...formData, notes: e.target.value})} 
+              placeholder="e.g. Gate code is #1234. Watch out for dog." 
+              rows="2"
+              style={{ fontFamily: 'inherit', resize: 'vertical' }}
+            />
+          </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
             <button type="button" className="btn btn-outline" onClick={handleCloseModal}>Cancel</button>
             <button type="submit" className="btn btn-primary">Save</button>
@@ -131,7 +148,14 @@ function Customers() {
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <td style={{ padding: '12px 16px', fontWeight: '500' }}>{c.name}</td>
-                  <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{c.address}</td>
+                  <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
+                    <div>{c.address}</div>
+                    {c.notes && (
+                      <div style={{ fontSize: '12px', color: '#fbbf24', marginTop: '4px', display: 'inline-block', background: 'rgba(245,158,11,0.1)', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(245,158,11,0.2)' }}>
+                        ⚠️ {c.notes}
+                      </div>
+                    )}
+                  </td>
                   <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>{c.phone}</td>
                   <td style={{ padding: '12px 16px' }}><span className="badge badge-green">{c.schedule}</span></td>
                   <td style={{ padding: '12px 16px', textAlign: 'right' }}>
