@@ -34,6 +34,11 @@
   box-sizing: border-box;
 }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--bg-dark);
@@ -242,4 +247,15 @@ select.input-field option {
   .desktop-sidebar { display: none !important; }
   .mobile-bottom-nav { display: flex !important; }
   main { padding-bottom: 80px !important; }
+
+  /* Prevent horizontal scroll on mobile */
+  .app-container { max-width: 100vw; overflow-x: hidden; }
+  main { max-width: 100%; overflow-x: hidden; }
+  .card { min-width: 0; }
+
+  /* Make tables scroll inside their box only */
+  div[style*='overflowX'] { max-width: calc(100vw - 32px); }
+
+  /* Stack schedule job cards vertically */
+  h1 { font-size: 22px !important; }
 }
