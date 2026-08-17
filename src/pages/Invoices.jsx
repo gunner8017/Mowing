@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, X, Trash2 } from 'lucide-react';
+import { Plus, X, Trash2, MessageSquare } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 function Invoices() {
@@ -23,7 +23,7 @@ function Invoices() {
   }
 
   async function fetchCustomers() {
-    const { data } = await supabase.from('customers').select('id, name').order('name');
+    const { data } = await supabase.from('customers').select('id, name, phone').order('name');
     if (data) setCustomers(data);
   }
 
@@ -52,6 +52,20 @@ function Invoices() {
     const newStatus = inv.status === 'Pending' ? 'Paid' : 'Pending';
     await supabase.from('invoices').update({ status: newStatus }).eq('id', inv.id);
     fetchInvoices();
+  };
+
+  const handleTextInvoice = (inv) => {
+    const customer = customers.find(c => c.name === inv.customer_name);
+    if (!customer || !customer.phone) {
+      alert("Could not find a phone number for this customer. Make sure they are added in the Customers tab!");
+      return;
+    }
+    
+    const cleanPhone = customer.phone.replace(/\D/g, ''); // strip formatting
+    const message = `Hi ${inv.customer_name}, this is KG Lawn Services. Just sending over invoice ${inv.invoice_id} for ${inv.amount} for our recent lawn care service. Thank you!`;
+    
+    // Trigger native SMS client
+    window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(message)}`;
   };
 
   const modal = isModalOpen ? createPortal(
@@ -140,6 +154,9 @@ function Invoices() {
                     </button>
                   </td>
                   <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                    <button onClick={() => handleTextInvoice(inv)} style={{ background: 'transparent', border: 'none', color: '#10b981', padding: '4px', cursor: 'pointer', marginRight: '8px' }} title="Text Invoice">
+                      <MessageSquare size={18} />
+                    </button>
                     <button onClick={() => handleDelete(inv.id)} style={{ background: 'transparent', border: 'none', color: '#ef4444', padding: '4px', cursor: 'pointer' }}>
                       <Trash2 size={18} />
                     </button>
