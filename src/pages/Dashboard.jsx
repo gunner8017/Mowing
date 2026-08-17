@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus } from 'lucide-react';
+import { Navigation, MapPin } from 'lucide-react';
 import banner from '../assets/image1.png';
 import { supabase } from '../supabaseClient';
 
@@ -11,14 +11,16 @@ function Dashboard() {
     pendingInvoices: 0
   });
   const [todayJobs, setTodayJobs] = useState([]);
+  const [loadingRoute, setLoadingRoute] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
 
   async function fetchDashboardData() {
-    // Fetch Customers count
-    const { count: customersCount } = await supabase.from('customers').select('*', { count: 'exact', head: true });
+    // Fetch Customers (need count and address mapping)
+    const { data: customerList } = await supabase.from('customers').select('name, address');
+    const customersCount = customerList ? customerList.length : 0;
     
     // Fetch Pending Invoices count
     const { count: pendingCount } = await supabase.from('invoices').select('*', { count: 'exact', head: true }).eq('status', 'Pending');
@@ -44,13 +46,38 @@ function Dashboard() {
       pendingInvoices: pendingCount || 0
     });
 
-    if (jobs) setTodayJobs(jobs);
+    if (jobs && customerList) {
+      // Map addresses to today's jobs
+      const mappedJobs = jobs.map(job => {
+        const match = customerList.find(c => c.name === job.customer_name);
+        return {
+          ...job,
+          address: match ? match.address : 'No address saved'
+        };
+      });
+      setTodayJobs(mappedJobs);
+    }
   }
 
   const toggleJobStatus = async (job) => {
     const newStatus = job.status === 'Scheduled' ? 'Completed' : 'Scheduled';
     await supabase.from('jobs').update({ status: newStatus }).eq('id', job.id);
     fetchDashboardData();
+  };
+
+  const handleMapRoute = () => {
+    const validAddresses = todayJobs
+      .map(job => job.address)
+      .filter(addr => addr && addr !== 'No address saved' && addr.trim() !== '');
+
+    if (validAddresses.length === 0) {
+      alert("No valid addresses found for today's jobs. Make sure customers have addresses saved!");
+      return;
+    }
+
+    // Opens Google Maps routing from Current Location through all waypoints
+    const mapsUrl = `https://www.google.com/maps/dir/Current+Location/${validAddresses.map(addr => encodeURIComponent(addr)).join('/')}`;
+    window.open(mapsUrl, '_blank');
   };
 
   return (
@@ -70,7 +97,7 @@ function Dashboard() {
         </div>
         <div className="card">
           <h3 className="text-secondary" style={{ fontSize: '14px', marginBottom: '8px' }}>Total Revenue</h3>
-          <p className="text-primary" style={{ fontSize: '32px', fontWeight: '700' }}>${stats.revenueThisWeek}</p>
+          <p className="text-primary" style={{ fontSize: '32px', fontWeight: '700' }}>${stats.revenueThisWeek.toFixed(2)}</p>
         </div>
         <div className="card">
           <h3 className="text-secondary" style={{ fontSize: '14px', marginBottom: '8px' }}>Active Customers</h3>
@@ -82,22 +109,35 @@ function Dashboard() {
         </div>
       </div>
 
-      <h2 style={{ fontSize: '20px', marginTop: '24px', marginBottom: '16px' }}>Today's Schedule</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '28px', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+        <h2 style={{ fontSize: '20px' }}>Today's Schedule</h2>
+        {todayJobs.length > 0 && (
+          <button onClick={handleMapRoute} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '13px' }}>
+            <Navigation size={15} style={{ marginRight: '6px' }} /> Map Today's Route
+          </button>
+        )}
+      </div>
+
       <div className="card" style={{ padding: '0' }}>
         <ul style={{ listStyle: 'none' }}>
           {todayJobs.length === 0 ? (
-            <li style={{ padding: '16px' }}>No jobs scheduled for today.</li>
+            <li style={{ padding: '16px' }} className="text-secondary">No jobs scheduled for today.</li>
           ) : todayJobs.map((job, i, arr) => (
             <li key={job.id} style={{
-              padding: '12px 16px',
+              padding: '16px',
               borderBottom: i < arr.length - 1 ? 'var(--glass-border)' : 'none',
               display: 'flex',
               justifyContent: 'space-between',
-              alignItems: 'center'
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '12px'
             }}>
               <div>
-                <p style={{ fontWeight: '600', marginBottom: '4px' }}>{job.customer_name}</p>
-                <p className="text-secondary" style={{ fontSize: '14px' }}>{job.service} • {job.time}</p>
+                <p style={{ fontWeight: '600', marginBottom: '4px', fontSize: '16px' }}>{job.customer_name}</p>
+                <p className="text-secondary" style={{ fontSize: '13px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px' }}>
+                  <MapPin size={13} /> {job.address}
+                </p>
+                <p className="text-secondary" style={{ fontSize: '13px' }}>{job.service} • {job.time}</p>
               </div>
               <div>
                 <button 
