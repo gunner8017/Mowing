@@ -5,6 +5,7 @@ import { supabase } from '../supabaseClient';
 
 function Customers() {
   const [customers, setCustomers] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [formData, setFormData] = useState({ name: '', address: '', phone: '', schedule: '', notes: '' });
@@ -56,6 +57,17 @@ function Customers() {
       fetchCustomers();
     }
   };
+
+  // Filter customers based on search term
+  const filteredCustomers = customers.filter(c => {
+    const term = searchTerm.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(term) ||
+      c.address.toLowerCase().includes(term) ||
+      c.phone.toLowerCase().includes(term) ||
+      (c.notes && c.notes.toLowerCase().includes(term))
+    );
+  });
 
   const modal = isModalOpen ? createPortal(
     <div style={{
@@ -123,7 +135,14 @@ function Customers() {
           <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
             <div style={{ position: 'relative' }}>
               <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-              <input type="text" className="input-field" placeholder="Search customers..." style={{ width: '100%', paddingLeft: '40px' }} />
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder="Search by name, address, phone or notes..." 
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                style={{ width: '100%', paddingLeft: '40px' }} 
+              />
             </div>
           </div>
         </div>
@@ -141,9 +160,9 @@ function Customers() {
             <tbody>
               {loading ? (
                 <tr><td colSpan="5" style={{ padding: '16px', textAlign: 'center' }}>Loading...</td></tr>
-              ) : customers.length === 0 ? (
+              ) : filteredCustomers.length === 0 ? (
                 <tr><td colSpan="5" style={{ padding: '16px', textAlign: 'center' }}>No customers found.</td></tr>
-              ) : customers.map((c) => (
+              ) : filteredCustomers.map((c) => (
                 <tr key={c.id} style={{ borderBottom: '1px solid var(--border-color)' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
