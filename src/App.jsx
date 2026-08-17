@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Customers from './pages/Customers';
 import Schedule from './pages/Schedule';
 import Invoices from './pages/Invoices';
+import Expenses from './pages/Expenses';
 import Earnings from './pages/Earnings';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
@@ -40,6 +41,7 @@ function App() {
       case 'customers': return <Customers />;
       case 'schedule': return <Schedule />;
       case 'invoices': return <Invoices />;
+      case 'expenses': return <Expenses />;
       case 'earnings': return <Earnings />;
       case 'settings': return <Settings />;
       default: return <Dashboard />;

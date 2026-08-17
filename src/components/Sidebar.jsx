@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, CalendarDays, FileText, DollarSign, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, CalendarDays, FileText, DollarSign, Receipt, Settings } from 'lucide-react';
 import logo from '../assets/image2.png';
 
 const navItems = [
@@ -6,6 +6,7 @@ const navItems = [
   { id: 'customers', label: 'Customers', icon: <Users size={22} /> },
   { id: 'schedule', label: 'Schedule', icon: <CalendarDays size={22} /> },
   { id: 'invoices', label: 'Invoices', icon: <FileText size={22} /> },
+  { id: 'expenses', label: 'Expenses', icon: <Receipt size={22} /> },
   { id: 'earnings', label: 'Earnings', icon: <DollarSign size={22} /> },
   { id: 'settings', label: 'Settings', icon: <Settings size={22} /> },
 ];

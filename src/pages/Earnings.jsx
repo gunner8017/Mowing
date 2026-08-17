@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { DollarSign, AlertCircle, TrendingUp, MessageSquare } from 'lucide-react';
+import { DollarSign, AlertCircle, TrendingUp, TrendingDown, MessageSquare } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 function Earnings() {
   const [stats, setStats] = useState({
     totalPaid: 0,
     totalPending: 0,
-    avgInvoice: 0,
+    totalExpenses: 0,
+    netProfit: 0,
   });
   const [pendingInvoices, setPendingInvoices] = useState([]);
   const [topCustomers, setTopCustomers] = useState([]);
@@ -31,10 +32,12 @@ function Earnings() {
     const { data: settingsData } = await supabase.from('settings').select('*').limit(1);
     if (settingsData && settingsData.length > 0) setSettings(settingsData[0]);
 
+    // Fetch expenses
+    const { data: expensesData } = await supabase.from('expenses').select('amount');
+
     if (!error && invoices) {
       let paidSum = 0;
       let pendingSum = 0;
-      let paidCount = 0;
       const customerTotals = {};
 
       invoices.forEach(inv => {
@@ -43,12 +46,20 @@ function Earnings() {
 
         if (inv.status === 'Paid') {
           paidSum += validAmount;
-          paidCount++;
           customerTotals[inv.customer_name] = (customerTotals[inv.customer_name] || 0) + validAmount;
         } else if (inv.status === 'Pending') {
           pendingSum += validAmount;
         }
       });
+
+      let expenseSum = 0;
+      if (expensesData) {
+        expensesData.forEach(exp => {
+          const amount = parseFloat(exp.amount.replace(/[^0-9.-]+/g, ""));
+          const validAmount = isNaN(amount) ? 0 : amount;
+          expenseSum += validAmount;
+        });
+      }
 
       // Format top customers
       const sortedCustomers = Object.entries(customerTotals)
@@ -59,7 +70,8 @@ function Earnings() {
       setStats({
         totalPaid: paidSum,
         totalPending: pendingSum,
-        avgInvoice: paidCount > 0 ? Math.round(paidSum / paidCount) : 0,
+        totalExpenses: expenseSum,
+        netProfit: paidSum - expenseSum,
       });
 
       setPendingInvoices(invoices.filter(inv => inv.status === 'Pending'));
@@ -87,7 +99,7 @@ function Earnings() {
   return (
     <div>
       <div className="flex justify-between items-center" style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '28px' }}>Earnings Report</h1>
+        <h1 style={{ fontSize: '28px' }}>Earnings & Profits</h1>
       </div>
 
       {loading ? (
@@ -96,29 +108,43 @@ function Earnings() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
           {/* Stats Grid */}
-          <div className="grid md:grid-cols-3" style={{ gap: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))' }}>
+          <div className="grid md:grid-cols-4" style={{ gap: '16px', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
             <div className="card" style={{ borderLeft: '4px solid var(--primary-green)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <h3 className="text-secondary" style={{ fontSize: '14px' }}>Total Money Earned</h3>
+                <h3 className="text-secondary" style={{ fontSize: '14px' }}>Total Revenue (Paid)</h3>
                 <TrendingUp size={20} className="text-green" />
               </div>
-              <p className="text-green" style={{ fontSize: '32px', fontWeight: '700' }}>${stats.totalPaid.toFixed(2)}</p>
+              <p className="text-green" style={{ fontSize: '28px', fontWeight: '700' }}>${stats.totalPaid.toFixed(2)}</p>
+            </div>
+
+            <div className="card" style={{ borderLeft: '4px solid #ef4444' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <h3 className="text-secondary" style={{ fontSize: '14px' }}>Expenses</h3>
+                <TrendingDown size={20} style={{ color: '#ef4444' }} />
+              </div>
+              <p style={{ fontSize: '28px', fontWeight: '700', color: '#f87171' }}>${stats.totalExpenses.toFixed(2)}</p>
+            </div>
+
+            <div className="card" style={{ borderLeft: `4px solid ${stats.netProfit >= 0 ? 'var(--primary-green)' : '#ef4444'}` }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <h3 className="text-secondary" style={{ fontSize: '14px' }}>Net Profit</h3>
+                <DollarSign size={20} style={{ color: stats.netProfit >= 0 ? 'var(--primary-green)' : '#ef4444' }} />
+              </div>
+              <p style={{ 
+                fontSize: '28px', 
+                fontWeight: '700', 
+                color: stats.netProfit >= 0 ? 'var(--primary-green)' : '#f87171' 
+              }}>
+                ${stats.netProfit.toFixed(2)}
+              </p>
             </div>
 
             <div className="card" style={{ borderLeft: '4px solid #fbbf24' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <h3 className="text-secondary" style={{ fontSize: '14px' }}>Unpaid (Pending)</h3>
+                <h3 className="text-secondary" style={{ fontSize: '14px' }}>Outstanding</h3>
                 <AlertCircle size={20} style={{ color: '#fbbf24' }} />
               </div>
-              <p style={{ fontSize: '32px', fontWeight: '700', color: '#fbbf24' }}>${stats.totalPending.toFixed(2)}</p>
-            </div>
-
-            <div className="card" style={{ borderLeft: '4px solid #3b82f6' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <h3 className="text-secondary" style={{ fontSize: '14px' }}>Avg. Paid Invoice</h3>
-                <DollarSign size={20} style={{ color: '#3b82f6' }} />
-              </div>
-              <p style={{ fontSize: '32px', fontWeight: '700', color: '#3b82f6' }}>${stats.avgInvoice}</p>
+              <p style={{ fontSize: '28px', fontWeight: '700', color: '#fbbf24' }}>${stats.totalPending.toFixed(2)}</p>
             </div>
           </div>
 
